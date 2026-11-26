@@ -7,7 +7,7 @@ a day plan: when to go out, how to commute, when to open the windows, and
 what to do indoors, with the direct impact of each choice stated in plain
 numbers.
 
-**Live app:** _(GitHub Pages URL — add after enabling Pages: Settings → Pages → Deploy from branch → `main`)_
+**Live app:** https://kuntalsaha05.github.io/breatheeasy-aqi-assistant/
 **Repository rules check:** public · single branch (`main`) · total size ≈ 94 KB (limit 10 MB)
 
 ---
