@@ -6,21 +6,32 @@ the recording itself (no ffmpeg text rendering needed). Run from the repo
 root after starting a local server, e.g.:
 
     python3 -m http.server 8128 &
-    ~/workspace/.pwenv/bin/python tools/record-video.py
+    python tools/record-video.py        # needs a Playwright install (see below)
     ffmpeg -i /tmp/breatheeasy-video/*.webm -c:v libx264 -pix_fmt yuv420p \
         ~/workspace/your_files/breatheeasy-demo-video.mp4
+
+Playwright here runs from a venv, e.g. `~/workspace/.pwenv/bin/python`
+(the system python has no playwright); set PW_CHROMIUM to your Chromium
+executable and VIDEO_OUT_DIR to change where the recording lands.
 
 The video records the live app (index.html over HTTP), so it shows the
 real interactions: plan generation, activity check, purifier sizing and
 the dark-mode toggle. Total runtime is ~60 seconds.
 """
+import os
 import sys
 import time
 
 from playwright.sync_api import sync_playwright
 
 URL = "http://localhost:8128/index.html"
-OUT_DIR = "/tmp/breatheeasy-video"
+# Override with PW_CHROMIUM / VIDEO_OUT_DIR when the defaults do not fit
+# your machine — the script keeps no other machine-specific paths.
+CHROMIUM_PATH = os.environ.get(
+    "PW_CHROMIUM",
+    os.path.expanduser("~/.cache/ms-playwright/chromium-1248/chrome-linux64/chrome"),
+)
+OUT_DIR = os.environ.get("VIDEO_OUT_DIR", "/tmp/breatheeasy-video")
 WIDTH, HEIGHT = 1280, 720
 
 CAPTION_BAR_JS = """(text) => {
@@ -56,7 +67,8 @@ def main():
     with sync_playwright() as p:
         browser = p.chromium.launch(
             # The cached full Chromium (the headless shell is not downloaded).
-            executable_path="/home/hatch/.cache/ms-playwright/chromium-1248/chrome-linux64/chrome",
+            # Set PW_CHROMIUM to point at your own Chromium build.
+            executable_path=CHROMIUM_PATH,
             args=["--hide-scrollbars", "--disable-gpu", "--no-sandbox"],
         )
         ctx = browser.new_context(
