@@ -1,0 +1,517 @@
+/* styles.css — BreatheEasy
+   Single-file stylesheet, no framework, no external assets (the CSP
+   allows no remote styles or fonts, so everything here is system
+   fonts and pure CSS). One teal family, generous spacing, soft cards
+   with a coloured tick on each heading, a dark code-editor look for
+   Prompt Studio, and a full dark theme behind a toggle (all colours
+   flow through the variables below, so the theme is one override
+   block). Accessibility rules live at the bottom and win on purpose. */
+
+/* ---------- Tokens ---------- */
+:root {
+  --teal-900: #134e4a;
+  --teal-700: #0f766e;
+  --teal-600: #0d9488;
+  --teal-500: #14b8a6;
+  --teal-300: #5eead4;
+  --teal-100: #ccfbf1;
+  --teal-50: #f0fdfa;
+  --ink: #0f172a;
+  --body: #1e293b;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --card: #ffffff;
+  --danger: #dc2626;
+  --good: #15803d;
+  --focus: #f59e0b;
+  /* Theme-driven surfaces — dark mode overrides these below. */
+  --bg-start: #ecfdf5;
+  --bg-end: #f8fafc;
+  --field-bg: #ffffff;
+  --fieldset-bg: #f8fafc;
+  --hack-bg: #f8fafc;
+  --note-bg: #f0fdfa;
+  --note-border: #ccfbf1;
+  --code-bg: #0f172a;
+  --code-text: #e2e8f0;
+  --code-border: #1e293b;
+  --chart-grid: #f1f5f9;
+  --accent-text: #0f766e;
+  --shadow: 0 1px 2px rgba(15, 23, 42, .05), 0 8px 24px rgba(15, 118, 110, .07);
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #f1f5f9;
+  --body: #e2e8f0;
+  --muted: #94a3b8;
+  --line: #334155;
+  --card: #1e293b;
+  --bg-start: #0f172a;
+  --bg-end: #020617;
+  --field-bg: #0f172a;
+  --fieldset-bg: #0f172a;
+  --hack-bg: #0f172a;
+  --note-bg: rgba(19, 78, 74, .45);
+  --note-border: #134e4a;
+  --code-bg: #020617;
+  --code-text: #e2e8f0;
+  --code-border: #334155;
+  --chart-grid: #263449;
+  --accent-text: #5eead4;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35);
+}
+
+/* ---------- Base ---------- */
+* { box-sizing: border-box; }
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  margin: 0;
+  background: linear-gradient(180deg, var(--bg-start) 0, var(--bg-end) 340px);
+  color: var(--body);
+  line-height: 1.55;
+}
+
+h1, h2, h3 {
+  color: var(--ink);
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+h2 {
+  font-size: 21px;
+  margin: 0 0 8px;
+}
+h2::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 20px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #2dd4bf, var(--teal-700));
+  margin-right: 10px;
+  vertical-align: -3px;
+}
+h3 { font-size: 16px; margin: 18px 0 8px; }
+
+header {
+  position: relative;
+  background:
+    radial-gradient(560px 180px at 85% -40px, rgba(45, 212, 191, .45), transparent 70%),
+    linear-gradient(135deg, #0f766e 0%, #115e59 55%, var(--teal-900) 100%);
+  color: #fff;
+  padding: 36px 20px 32px;
+}
+header h1 {
+  color: #fff;
+  margin: 0;
+  font-size: 36px;
+  letter-spacing: -0.03em;
+}
+.sub {
+  opacity: .92;
+  max-width: 660px;
+  margin: 10px 0 0;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+main {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 24px 20px;
+  display: grid;
+  gap: 22px;
+}
+
+footer {
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 8px 20px 28px;
+  line-height: 1.6;
+}
+
+/* ---------- Cards & utilities ---------- */
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 22px;
+  box-shadow: var(--shadow);
+  animation: rise .45s ease both;
+}
+main .card:nth-child(2) { animation-delay: .05s; }
+main .card:nth-child(3) { animation-delay: .1s; }
+main .card:nth-child(4) { animation-delay: .15s; }
+main .card:nth-child(5) { animation-delay: .2s; }
+main .card:nth-child(6) { animation-delay: .25s; }
+main .card:nth-child(7) { animation-delay: .3s; }
+main .card:nth-child(8) { animation-delay: .35s; }
+main .card:nth-child(9) { animation-delay: .4s; }
+main .card:nth-child(10) { animation-delay: .45s; }
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.hidden { display: none; }
+.hint { color: var(--muted); font-size: 13px; line-height: 1.55; }
+.small { font-size: 13px; color: var(--muted); font-weight: 400; }
+
+/* ---------- Theme toggle ---------- */
+.theme-toggle {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  margin: 0;
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, .14);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, .4);
+  box-shadow: none;
+  border-radius: 999px;
+  font-size: 14px;
+}
+.theme-toggle:hover {
+  background: rgba(255, 255, 255, .26);
+  filter: none;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ---------- Forms ---------- */
+label {
+  display: block;
+  margin: 10px 0;
+  font-weight: 600;
+  color: var(--ink);
+}
+label input,
+label select,
+textarea {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 15px;
+  box-sizing: border-box;
+  background: var(--field-bg);
+  color: var(--body);
+}
+label input:focus,
+label select:focus,
+textarea:focus {
+  border-color: var(--teal-500);
+}
+label.check {
+  font-weight: 400;
+  margin: 8px 0;
+}
+label.check input {
+  display: inline-block;
+  width: auto;
+  margin: 0 8px 0 0;
+}
+fieldset {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  margin: 12px 0;
+  padding: 14px;
+  background: var(--fieldset-bg);
+}
+legend { font-weight: 700; padding: 0 6px; color: var(--ink); }
+
+/* Buttons and form fields sit side by side in a row. */
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+.row button { flex: 1; }
+.row label { flex: 1; margin: 0; min-width: 150px; }
+
+button {
+  background: linear-gradient(180deg, var(--teal-500), var(--teal-700));
+  color: #fff;
+  border: 0;
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  margin-top: 12px;
+  box-shadow: 0 6px 16px rgba(15, 118, 110, .25);
+  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+}
+button:hover {
+  filter: brightness(1.07);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(15, 118, 110, .3);
+}
+button:active { transform: translateY(0); }
+button.secondary {
+  background: var(--card);
+  color: var(--accent-text);
+  border: 1px solid var(--accent-text);
+  box-shadow: none;
+}
+button.secondary:hover { background: var(--note-bg); }
+
+/* ---------- AQI display ---------- */
+.aqi-hero {
+  display: flex;
+  gap: 22px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.aqi-number {
+  font-size: 64px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  padding: 10px 22px;
+  border-radius: 20px;
+  /* Tinted tile behind the number, using the band colour JS sets inline. */
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+.aqi-label {
+  display: inline-block;
+  font-size: 17px;
+  font-weight: 700;
+  margin: 10px 0 0;
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+.aqi-pm { margin: 0; color: var(--body); font-weight: 600; }
+#aqi-advice { line-height: 1.6; }
+
+/* ---------- Outlook bar chart ---------- */
+/* Pure CSS bars: each bar is a flex item whose height is a % of the max. */
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 120px;
+  padding: 8px 4px 0;
+  border-bottom: 2px solid #99f6e4;
+  background: linear-gradient(var(--chart-grid) 1px, transparent 1px);
+  background-size: 100% 30px;
+}
+.chart .bar {
+  flex: 1;
+  background: linear-gradient(180deg, #2dd4bf, var(--teal-600));
+  border-radius: 4px 4px 0 0;
+  min-height: 2px;
+  transition: filter .15s ease;
+}
+.chart .bar:hover { filter: brightness(1.12); }
+.chart .bar.worst { background: linear-gradient(180deg, #f87171, var(--danger)); }
+.chart .bar.best { background: linear-gradient(180deg, #4ade80, var(--good)); }
+.chart-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+  padding: 4px 2px 0;
+}
+#window-note {
+  background: var(--note-bg);
+  border: 1px solid var(--note-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  line-height: 1.6;
+}
+
+/* ---------- City comparison ---------- */
+.compare-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: grid;
+  gap: 4px;
+}
+.compare-list li {
+  display: grid;
+  grid-template-columns: 24px minmax(80px, 110px) 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 10px;
+}
+.compare-list li.current {
+  background: var(--note-bg);
+  outline: 1px solid var(--note-border);
+}
+.compare-list .rank {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.compare-list .cname { font-weight: 600; color: var(--ink); }
+.compare-list .cbar {
+  height: 10px;
+  background: var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.compare-list .cbar span { display: block; height: 100%; border-radius: 999px; }
+.compare-list .caqi {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* ---------- Plan output ---------- */
+ul { line-height: 1.6; }
+li { margin: 6px 0; }
+#routine-list {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+  display: grid;
+  gap: 10px;
+}
+#routine-list li {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--teal-600);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin: 0;
+  background: var(--card);
+}
+#routine-list li b { display: block; color: var(--ink); }
+#routine-list .impact {
+  display: inline-block;
+  margin-top: 6px;
+  color: var(--accent-text);
+  background: var(--note-bg);
+  border: 1px solid var(--note-border);
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ---------- Activity checker ---------- */
+.verdict {
+  border-left: 4px solid;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 12px 0 0;
+}
+.verdict.go { border-color: var(--good); background: color-mix(in srgb, var(--good) 10%, transparent); }
+.verdict.caution { border-color: #d97706; background: color-mix(in srgb, #d97706 10%, transparent); }
+.verdict.avoid { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
+#act-result p, #room-result p { line-height: 1.6; }
+
+/* ---------- Indoor hacks ---------- */
+#hack-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: grid;
+  gap: 10px;
+}
+#hack-list li { margin: 0; }
+#hack-list label {
+  position: relative;
+  display: block;
+  margin: 0;
+  padding: 13px 14px 13px 42px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--hack-bg);
+  font-weight: 400;
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease;
+}
+#hack-list label:hover { border-color: #99f6e4; background: var(--card); }
+#hack-list label input[type="checkbox"] {
+  position: absolute;
+  left: 13px;
+  top: 15px;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--teal-700);
+  cursor: pointer;
+}
+#hack-list li:has(input:checked) label {
+  background: var(--note-bg);
+  border-color: var(--teal-300);
+}
+#hack-list li:has(input:checked) b { color: var(--accent-text); }
+#hack-list .impact {
+  display: block;
+  color: var(--accent-text);
+  font-size: 13px;
+  margin-top: 3px;
+}
+#hack-progress {
+  display: inline-block;
+  background: var(--note-bg);
+  border: 1px solid var(--note-border);
+  color: var(--accent-text);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 13px;
+}
+
+/* ---------- Impact & Prompt Studio ---------- */
+#impact-card p { line-height: 1.7; }
+#prompt-text {
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.65;
+  background: var(--code-bg);
+  color: var(--code-text);
+  border: 1px solid var(--code-border);
+  border-radius: 12px;
+  resize: vertical;
+}
+
+/* ---------- Accessibility ---------- */
+/* Visible keyboard focus everywhere; never remove the outline. */
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Calmer motion for people who ask for it. */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Checkboxes big enough to tap comfortably. */
+input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+}
+
+/* ---------- Small screens ---------- */
+@media (max-width: 560px) {
+  header { padding: 28px 16px 24px; }
+  header h1 { font-size: 30px; }
+  main { padding: 16px 14px; gap: 16px; }
+  .card { padding: 18px; border-radius: 16px; }
+  .aqi-number { font-size: 54px; padding: 8px 16px; }
+  .aqi-hero { gap: 16px; }
+  .compare-list li { grid-template-columns: 20px minmax(70px, 90px) 1fr auto; gap: 8px; }
+}
+
+/* ---------- Print ---------- */
+/* Print the plan, not the controls: hide the picker, Prompt Studio and
+   every button; cards print flat with no shadow. */
+@media print {
+  body { background: #fff; color: #000; }
+  header .theme-toggle, button, #location-card, #prompt-card { display: none !important; }
+  .card { box-shadow: none; border: 1px solid #bbb; break-inside: avoid; animation: none; }
+  main { max-width: none; }
+}

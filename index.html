@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="BreatheEasy — a GenAI urban air quality assistant for Indian cities: live or bundled AQI with plain-language health guidance, a today/tomorrow outlook, a low-emission routine planner with quantified impact, indoor air-quality hacks, and a Prompt Studio powered by Google Gemini.">
+  <!-- Defence in depth: only this origin's code runs; the only network calls
+       the page may make are to Google's Gemini API and Open-Meteo's free
+       air-quality API. No external scripts, no tracking. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src https://generativelanguage.googleapis.com https://air-quality-api.open-meteo.com; img-src 'self' data:; base-uri 'self'">
+  <title>BreatheEasy — Urban Air Quality Assistant</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to dark mode">🌙 Dark</button>
+    <h1>🌫️ BreatheEasy</h1>
+    <p class="sub">A GenAI assistant that helps families navigate winter smog — live or bundled AQI, a routine that says exactly what each choice saves you, and indoor hacks that actually work. PromptWars Virtual · Challenge 06.</p>
+  </header>
+
+  <main>
+    <section class="card" id="location-card">
+      <h2>Where are you?</h2>
+      <label>City
+        <select id="city">
+          <option value="delhi" selected>Delhi</option>
+          <option value="lucknow">Lucknow</option>
+          <option value="kanpur">Kanpur</option>
+          <option value="patna">Patna</option>
+          <option value="amritsar">Amritsar</option>
+          <option value="indore">Indore</option>
+          <option value="bhopal">Bhopal</option>
+          <option value="kolkata">Kolkata</option>
+          <option value="ahmedabad">Ahmedabad</option>
+          <option value="jaipur">Jaipur</option>
+          <option value="mumbai">Mumbai</option>
+          <option value="pune">Pune</option>
+          <option value="bengaluru">Bengaluru</option>
+          <option value="hyderabad">Hyderabad</option>
+          <option value="chennai">Chennai</option>
+        </select>
+      </label>
+      <div class="row">
+        <button id="use-location">📍 Use my location</button>
+        <button id="try-live" class="secondary">🌐 Try live AQI data</button>
+      </div>
+      <p id="data-note" class="hint" aria-live="polite">Showing bundled sample data for Delhi — representative winter-smog values for demo and offline use. Try live data for the latest reading.</p>
+    </section>
+
+    <section class="card" id="aqi-card" aria-live="polite">
+      <h2>Air right now</h2>
+      <div class="aqi-hero">
+        <div>
+          <p class="aqi-number" id="aqi-number">—</p>
+          <p class="aqi-label" id="aqi-label">—</p>
+        </div>
+        <p class="aqi-pm" id="aqi-pm"></p>
+      </div>
+      <p id="aqi-advice"></p>
+      <p id="aqi-sensitive" class="hint"></p>
+    </section>
+
+    <section class="card" id="outlook-card">
+      <h2>Today &amp; tomorrow — PM2.5 outlook</h2>
+      <p class="hint">Hourly PM2.5 (µg/m³). The afternoon dip is when the air mixes and clears; the morning and evening peaks are the smog hours.</p>
+      <h3>Today</h3>
+      <div id="chart-today" class="chart" role="img" aria-label="Bar chart of today's hourly PM2.5"></div>
+      <h3>Tomorrow</h3>
+      <div id="chart-tomorrow" class="chart" role="img" aria-label="Bar chart of tomorrow's hourly PM2.5"></div>
+      <p id="window-note" aria-live="polite"></p>
+    </section>
+
+    <section class="card" id="compare-card">
+      <h2>How your city compares</h2>
+      <p class="hint">All fifteen bundled cities, worst first. Your city is highlighted. Bundled values are representative winter-smog samples, not live readings.</p>
+      <ol id="compare-list" class="compare-list"></ol>
+    </section>
+
+    <section class="card" id="routine-card">
+      <h2>Your low-emission day plan</h2>
+      <p class="hint">Tell us about your household and the plan adapts — every recommendation states its direct impact.</p>
+      <fieldset>
+        <legend>Who is at home?</legend>
+        <label class="check"><input type="checkbox" id="p-children"> Children</label>
+        <label class="check"><input type="checkbox" id="p-elderly"> Elderly</label>
+        <label class="check"><input type="checkbox" id="p-asthma"> Asthma / breathing condition</label>
+        <label class="check"><input type="checkbox" id="p-worker"> Outdoor worker</label>
+      </fieldset>
+      <fieldset>
+        <legend>Commute</legend>
+        <label class="check"><input type="checkbox" id="p-commuter" checked> I commute daily</label>
+        <label>Usual vehicle
+          <select id="p-vehicle">
+            <option value="car" selected>Car (petrol)</option>
+            <option value="two-wheeler">Two-wheeler</option>
+            <option value="bus">Bus</option>
+            <option value="metro">Metro</option>
+            <option value="walk-cycle">Walking / cycling</option>
+          </select>
+        </label>
+        <label>Round-trip distance (km)
+          <input type="number" id="p-km" value="10" min="1" max="100">
+        </label>
+      </fieldset>
+      <div class="row">
+        <button id="generate">Generate my day plan →</button>
+        <button id="copy-plan" class="secondary">📋 Copy my plan</button>
+        <button id="save-profile" class="secondary">💾 Save my profile</button>
+      </div>
+      <p id="profile-note" class="hint" aria-live="polite"></p>
+      <ul id="routine-list" aria-live="polite"></ul>
+    </section>
+
+    <section class="card" id="activity-card">
+      <h2>Can I do it now?</h2>
+      <p class="hint">Pick an activity and an hour — the checker uses that hour's PM2.5 and how hard you breathe to give a verdict, not a guess.</p>
+      <div class="row">
+        <label>Activity
+          <select id="act-activity">
+            <option value="walk" selected>Easy walk</option>
+            <option value="run">Running / jogging</option>
+            <option value="cycle">Cycling</option>
+            <option value="play">Children playing outside</option>
+            <option value="work">Outdoor work (heavy)</option>
+            <option value="elderly-walk">Elderly walk</option>
+          </select>
+        </label>
+        <label>Hour
+          <select id="act-hour" aria-label="Hour of day"></select>
+        </label>
+      </div>
+      <button id="act-check">Check this activity →</button>
+      <div id="act-result" aria-live="polite"></div>
+    </section>
+
+    <section class="card" id="purifier-card">
+      <h2>🌬️ Size a purifier for your room</h2>
+      <p class="hint">A purifier needs about 4 air changes an hour to keep up with smog leaking in. Enter your room and get the CADR you need — and how many DIY box fans that is.</p>
+      <div class="row">
+        <label>Length (m)
+          <input type="number" id="room-l" value="4" min="1" max="20" step="0.5">
+        </label>
+        <label>Width (m)
+          <input type="number" id="room-w" value="3" min="1" max="20" step="0.5">
+        </label>
+        <label>Height (m)
+          <input type="number" id="room-h" value="3" min="1" max="20" step="0.5">
+        </label>
+      </div>
+      <button id="room-calc">Size my purifier →</button>
+      <div id="room-result" aria-live="polite"></div>
+    </section>
+
+    <section class="card" id="hacks-card">
+      <h2>🏠 Indoor AQI hacks</h2>
+      <p class="hint">Tick off what you have done. The biggest wins are the cheapest ones.</p>
+      <p id="hack-progress" aria-live="polite"><b>0 of 6 hacks done.</b></p>
+      <ul id="hack-list"></ul>
+    </section>
+
+    <section class="card" id="impact-card">
+      <h2>💡 Why your choices matter</h2>
+      <p>Two numbers decide how smog hits you: <b>how much PM2.5 you breathe in</b> and <b>how much you add to the air</b>. Shifting one hour of outdoor activity from the morning peak to the afternoon window avoids hundreds of micrograms of PM2.5 inhaled — and swapping a 10&nbsp;km car commute for the metro saves about <b>1.1&nbsp;kg of CO2 a day</b>, roughly 5.5&nbsp;kg a work week. The plan above puts a number on every choice, so you can see the trade-off instead of guessing.</p>
+      <p id="impact-summary" aria-live="polite"></p>
+    </section>
+
+    <section class="card" id="prompt-card">
+      <h2>🧠 Prompt Studio <span class="small">— this is the prompt engineering PromptWars judges</span></h2>
+      <p class="hint">Edit the prompt below, then run it. The exact prompt sent is shown, so a judge can see the craft, not just the output.</p>
+      <textarea id="prompt-text" rows="8" aria-label="Prompt sent to Gemini"></textarea>
+      <label>Gemini API key (optional, stays in your browser)
+        <input type="password" id="geminiKey" placeholder="Paste to run the prompt with real GenAI" autocomplete="off">
+      </label>
+      <button id="run-prompt">Run this prompt with Gemini →</button>
+      <button id="copy-prompt" class="secondary">📋 Copy prompt</button>
+      <p id="ai-note" class="hint" aria-live="polite"></p>
+      <ul id="ai-ideas"></ul>
+    </section>
+  </main>
+
+  <footer><p>PromptWars Virtual · Challenge 06 · Urban Air Quality Assistant · AQI scale: CPCB (India) · Bundled data is representative sample data; live data via Open-Meteo (CAMS).</p></footer>
+
+  <script src="aqi.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
