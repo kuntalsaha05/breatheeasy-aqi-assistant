@@ -35,14 +35,32 @@ const AQI_BANDS = [
     sensitive: 'Children, elderly and people with asthma: stay indoors, run a purifier, and wear an N95 mask for any essential trip out.' },
 ];
 
+/* ------------------------------------------------------------------ */
+/* Shared validation helpers                                         */
+/* ------------------------------------------------------------------ */
+
+/** True for a real number (not NaN, not Infinity, not a string). */
+function isValidNumber(v) {
+  return typeof v === 'number' && Number.isFinite(v);
+}
+
+/** Longest commute the maths handles, in km. */
+const MAX_COMMUTE_KM = 100;
+
+/** Clamp a commute distance to 0–100 km; non-numeric input counts as 0. */
+function clampKm(km) {
+  return Math.max(0, Math.min(MAX_COMMUTE_KM, Number(km) || 0));
+}
+
 /**
  * CPCB band for an AQI value. Returns null for a missing / non-numeric /
  * negative value; a value above 500 is still "Severe" (the scale caps at 500).
  */
 function categoriseAQI(aqi) {
-  if (typeof aqi !== 'number' || !Number.isFinite(aqi) || aqi < 0) return null;
+  if (!isValidNumber(aqi) || aqi < 0) return null;
   const v = Math.min(Math.round(aqi), 500);
-  return AQI_BANDS.find((b) => v >= b.min && v <= b.max) || AQI_BANDS[AQI_BANDS.length - 1];
+  // The bands cover 0–500 contiguously, so the lookup always finds one.
+  return AQI_BANDS.find((b) => v >= b.min && v <= b.max);
 }
 
 /* ------------------------------------------------------------------ */
@@ -57,14 +75,14 @@ const PM25_BREAKPOINTS = [
 
 /** Approximate CPCB AQI from a PM2.5 concentration (µg/m³). Null if invalid. */
 function pm25ToAQI(pm25) {
-  if (typeof pm25 !== 'number' || !Number.isFinite(pm25) || pm25 < 0) return null;
+  if (!isValidNumber(pm25) || pm25 < 0) return null;
   if (pm25 > 500) return 500;
+  // The last breakpoint covers up to 500, so the loop always returns here.
   for (const [cLo, cHi, aLo, aHi] of PM25_BREAKPOINTS) {
     if (pm25 <= cHi) {
       return Math.round(aLo + ((pm25 - cLo) / (cHi - cLo)) * (aHi - aLo));
     }
   }
-  return 500;
 }
 
 /* ------------------------------------------------------------------ */
@@ -135,12 +153,11 @@ function haversineKm(lat1, lon1, lat2, lon2) {
 }
 
 /**
- * Nearest bundled city to a lat/lon (used for browser geolocation).
+ * The nearest bundled city to a lat/lon (used for browser geolocation).
  * Returns the city key, or null for invalid coordinates.
  */
 function nearestCity(lat, lon) {
-  if (typeof lat !== 'number' || typeof lon !== 'number' ||
-      !Number.isFinite(lat) || !Number.isFinite(lon) ||
+  if (!isValidNumber(lat) || !isValidNumber(lon) ||
       lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
   let best = null, bestDist = Infinity;
   for (const c of CITIES) {
@@ -164,31 +181,31 @@ function fmtHour(h) {
 }
 
 /**
- * The cleanest 2-hour window in a 24-value hourly PM2.5 array.
+ * The extreme 2-hour window in a 24-value hourly PM2.5 array — the one
+ * helper behind both bestOutdoorWindow and worstOutdoorWindow.
+ * `better(candidateAvg, currentAvg)` picks which extreme wins; ties
+ * resolve to the earliest window, so the result is deterministic.
  * Returns { start, end, avgPm25 } or null for a missing / short / invalid array.
- * Ties resolve to the earliest window, so the result is deterministic.
  */
-function bestOutdoorWindow(hourly) {
+function extremeWindow(hourly, better) {
   if (!Array.isArray(hourly) || hourly.length < 2 ||
-      !hourly.every((v) => typeof v === 'number' && Number.isFinite(v) && v >= 0)) return null;
+      !hourly.every((v) => isValidNumber(v) && v >= 0)) return null;
   let best = null;
   for (let i = 0; i < hourly.length - 1; i++) {
     const avg = (hourly[i] + hourly[i + 1]) / 2;
-    if (!best || avg < best.avgPm25) best = { start: i, end: i + 2, avgPm25: Math.round(avg) };
+    if (!best || better(avg, best.avgPm25)) best = { start: i, end: i + 2, avgPm25: Math.round(avg) };
   }
   return best;
 }
 
+/** The cleanest 2-hour window in a 24-value hourly PM2.5 array. */
+function bestOutdoorWindow(hourly) {
+  return extremeWindow(hourly, (a, b) => a < b);
+}
+
 /** The dirtiest 2-hour window — same shape as bestOutdoorWindow. */
 function worstOutdoorWindow(hourly) {
-  if (!Array.isArray(hourly) || hourly.length < 2 ||
-      !hourly.every((v) => typeof v === 'number' && Number.isFinite(v) && v >= 0)) return null;
-  let worst = null;
-  for (let i = 0; i < hourly.length - 1; i++) {
-    const avg = (hourly[i] + hourly[i + 1]) / 2;
-    if (!worst || avg > worst.avgPm25) worst = { start: i, end: i + 2, avgPm25: Math.round(avg) };
-  }
-  return worst;
+  return extremeWindow(hourly, (a, b) => a > b);
 }
 
 /* ------------------------------------------------------------------ */
@@ -199,13 +216,33 @@ function worstOutdoorWindow(hourly) {
 // the UI and README — the comparison, not the exact gram, is the point).
 const CO2_G_PER_KM = { car: 120, 'two-wheeler': 40, bus: 30, metro: 10, 'walk-cycle': 0, none: 0 };
 
+// Modes that count as low-emission for the commute recommendation.
+const LOW_EMISSION_MODES = ['bus', 'metro', 'walk-cycle'];
+// Display labels for the commute modes, in the order the picker shows them.
+const MODE_LABELS = { metro: 'metro', bus: 'bus', 'walk-cycle': 'walking / cycling' };
+// Labels for the vehicle picker (the picker is built from this, so the list
+// lives in exactly one place).
+const VEHICLE_LABELS = {
+  car: 'Car (petrol)', 'two-wheeler': 'Two-wheeler', bus: 'Bus',
+  metro: 'Metro', 'walk-cycle': 'Walking / cycling',
+};
+
+/**
+ * The commute mode the plan recommends: keep a low-emission mode, or the
+ * metro for a car / two-wheeler. One function, used by generateRoutine
+ * and by the weekly-savings summary in the UI, so the two can never disagree.
+ */
+function recommendedCommuteMode(vehicle) {
+  return LOW_EMISSION_MODES.includes(vehicle) ? vehicle : 'metro';
+}
+
 /**
  * CO2 saved per day (kg) by taking `mode` instead of a petrol car for a
  * `km`-long round trip. 0 when the mode is already a car, or the inputs
  * are missing/invalid.
  */
 function co2SavedKg(mode, km) {
-  const distance = Math.max(0, Math.min(100, Number(km) || 0));
+  const distance = clampKm(km);
   const modeFactor = CO2_G_PER_KM[mode] ?? CO2_G_PER_KM.car;
   return Math.round(((CO2_G_PER_KM.car - modeFactor) * distance) / 100) / 10;
 }
@@ -268,94 +305,70 @@ function generateRoutine(profile, city) {
     asthma: !!profile.asthma, outdoorWorker: !!profile.outdoorWorker,
     commuter: !!profile.commuter,
     vehicle: CO2_G_PER_KM[profile.vehicle] !== undefined ? profile.vehicle : 'car',
-    commuteKm: Math.max(1, Math.min(100, Number.isFinite(kmRaw) ? kmRaw : 10)),
+    commuteKm: Math.max(1, Math.min(MAX_COMMUTE_KM, Number.isFinite(kmRaw) ? kmRaw : 10)),
   };
   const c = city || CITIES[0];
   const band = categoriseAQI(c.aqi) || AQI_BANDS[2];
   const best = bestOutdoorWindow(c.hourly) || { start: 14, end: 16, avgPm25: c.pm25 };
   const worst = worstOutdoorWindow(c.hourly) || { start: 7, end: 9, avgPm25: c.pm25 };
   const avoided = exposureAvoided(best.avgPm25, worst.avgPm25);
+  const bestLabel = `${fmtHour(best.start)}–${fmtHour(best.end)}`;
+  const worstLabel = `${fmtHour(worst.start)}–${fmtHour(worst.end)}`;
 
   const items = [];
+  const add = (time, title, detail, impact) => items.push({ time, title, detail, impact });
 
   if (c.aqi >= 301) {
-    items.push({
-      time: 'All day', title: 'Severe-day rule: stay indoors as much as possible',
-      detail: `AQI ${c.aqi} (${band.label}) — outdoor air is harmful for everyone today, not just sensitive groups.`,
-      impact: 'Staying indoors with windows shut and a purifier running cuts your PM2.5 exposure far more than any single outdoor change.',
-    });
+    add('All day', 'Severe-day rule: stay indoors as much as possible',
+      `AQI ${c.aqi} (${band.label}) — outdoor air is harmful for everyone today, not just sensitive groups.`,
+      'Staying indoors with windows shut and a purifier running cuts your PM2.5 exposure far more than any single outdoor change.');
   }
 
-  items.push({
-    time: `${fmtHour(best.start)}–${fmtHour(best.end)}`,
-    title: 'Best outdoor window — exercise, walk, errands',
-    detail: `Do outdoor activity between ${fmtHour(best.start)} and ${fmtHour(best.end)}, when PM2.5 is ≈ ${best.avgPm25} µg/m³ — the cleanest part of the day.`,
-    impact: `Shifting 1 hour outdoors here avoids ≈ ${avoided} µg of PM2.5 inhaled, vs the worst window (${fmtHour(worst.start)}–${fmtHour(worst.end)}, ≈ ${worst.avgPm25} µg/m³).`,
-  });
+  add(bestLabel, 'Best outdoor window — exercise, walk, errands',
+    `Do outdoor activity between ${fmtHour(best.start)} and ${fmtHour(best.end)}, when PM2.5 is ≈ ${best.avgPm25} µg/m³ — the cleanest part of the day.`,
+    `Shifting 1 hour outdoors here avoids ≈ ${avoided} µg of PM2.5 inhaled, vs the worst window (${worstLabel}, ≈ ${worst.avgPm25} µg/m³).`);
 
-  items.push({
-    time: `${fmtHour(best.start)}–${fmtHour(best.end)}`,
-    title: 'Ventilate the home',
-    detail: `Open windows for 20–30 minutes in the ${fmtHour(best.start)}–${fmtHour(best.end)} window, then shut them — especially during the ${fmtHour(worst.start)}–${fmtHour(worst.end)} smog peak.`,
-    impact: 'You flush stale indoor air with the cleanest outdoor air of the day instead of the dirtiest.',
-  });
+  add(bestLabel, 'Ventilate the home',
+    `Open windows for 20–30 minutes in the ${bestLabel} window, then shut them — especially during the ${worstLabel} smog peak.`,
+    'You flush stale indoor air with the cleanest outdoor air of the day instead of the dirtiest.');
 
   if (p.commuter) {
-    const lowEmission = p.vehicle === 'bus' || p.vehicle === 'metro' || p.vehicle === 'walk-cycle';
-    const recommended = lowEmission ? p.vehicle : 'metro';
+    const recommended = recommendedCommuteMode(p.vehicle);
+    const lowEmission = recommended === p.vehicle;
     const saved = co2SavedKg(recommended, p.commuteKm);
-    const modeLabel = { metro: 'metro', bus: 'bus', 'walk-cycle': 'walking / cycling' }[recommended];
-    items.push({
-      time: 'Commute',
-      title: lowEmission
+    const modeLabel = MODE_LABELS[recommended];
+    add('Commute',
+      lowEmission
         ? `Commute: keep the ${modeLabel} — already low-emission`
         : `Commute: take the metro instead of the ${p.vehicle === 'car' ? 'car' : 'two-wheeler'}`,
-      detail: lowEmission
+      lowEmission
         ? `${p.commuteKm} km round trip by ${modeLabel} — no car involved.`
         : `${p.commuteKm} km round trip by ${modeLabel} instead of by ${p.vehicle}.`,
-      impact: saved > 0
+      saved > 0
         ? `Saves ≈ ${saved} kg of CO2 per day (≈ ${(saved * 5).toFixed(1)} kg per work week) vs driving — and keeps you out of the worst traffic-hour smog.`
-        : 'Already a low-emission commute — no CO2 to save vs driving, and no extra smog exposure.',
-    });
+        : 'Already a low-emission commute — no CO2 to save vs driving, and no extra smog exposure.');
   }
 
-  if (p.children) {
-    items.push({
-      time: 'All day', title: 'Children: no outdoor play today',
-      detail: `AQI ${c.aqi} (${band.label}) — keep play indoors; move it to the ${fmtHour(best.start)}–${fmtHour(best.end)} window only if the AQI drops to Moderate or better.`,
-      impact: 'Children breathe faster and inhale more PM2.5 per kg of body weight than adults, so the same air hits them harder.',
-    });
-  }
-  if (p.elderly) {
-    items.push({
-      time: `${fmtHour(best.start)}–${fmtHour(best.end)}`,
-      title: 'Elderly: move the morning walk to the afternoon',
-      detail: 'The usual early-morning walk lands in the smog peak. Walk in the afternoon window instead, at an easy pace.',
-      impact: 'Avoids the morning PM2.5 peak entirely — the single biggest exposure cut for an elderly walker.',
-    });
-  }
-  if (p.asthma) {
-    items.push({
-      time: 'All day', title: 'Asthma / breathing condition: inhaler + N95',
-      detail: 'Carry the inhaler, wear an N95 mask for any time outdoors, and avoid the worst window entirely.',
-      impact: 'An N95 filters ≈ 95% of PM2.5 when fitted well — it turns a harmful outdoor trip into a manageable one.',
-    });
-  }
-  if (p.outdoorWorker) {
-    items.push({
-      time: `${fmtHour(best.start)}–${fmtHour(best.end)}`,
-      title: 'Outdoor worker: shift heavy work to the afternoon window',
-      detail: `Do the heaviest outdoor tasks between ${fmtHour(best.start)} and ${fmtHour(best.end)}, wear an N95 mask, and take breaks indoors every hour.`,
-      impact: `Working in the best window instead of the morning peak avoids ≈ ${avoided} µg of PM2.5 inhaled per hour of work.`,
-    });
-  }
+  // One item per sensitive group, each with its own timing and impact.
+  const flagItems = [
+    { flag: 'children', build: () => add('All day', 'Children: no outdoor play today',
+      `AQI ${c.aqi} (${band.label}) — keep play indoors; move it to the ${bestLabel} window only if the AQI drops to Moderate or better.`,
+      'Children breathe faster and inhale more PM2.5 per kg of body weight than adults, so the same air hits them harder.') },
+    { flag: 'elderly', build: () => add(bestLabel, 'Elderly: move the morning walk to the afternoon',
+      'The usual early-morning walk lands in the smog peak. Walk in the afternoon window instead, at an easy pace.',
+      'Avoids the morning PM2.5 peak entirely — the single biggest exposure cut for an elderly walker.') },
+    { flag: 'asthma', build: () => add('All day', 'Asthma / breathing condition: inhaler + N95',
+      'Carry the inhaler, wear an N95 mask for any time outdoors, and avoid the worst window entirely.',
+      'An N95 filters ≈ 95% of PM2.5 when fitted well — it turns a harmful outdoor trip into a manageable one.') },
+    { flag: 'outdoorWorker', build: () => add(bestLabel, 'Outdoor worker: shift heavy work to the afternoon window',
+      `Do the heaviest outdoor tasks between ${fmtHour(best.start)} and ${fmtHour(best.end)}, wear an N95 mask, and take breaks indoors every hour.`,
+      `Working in the best window instead of the morning peak avoids ≈ ${avoided} µg of PM2.5 inhaled per hour of work.`) },
+  ];
+  for (const { flag, build } of flagItems) if (p[flag]) build();
 
-  items.push({
-    time: 'Before you leave',
-    title: 'Check the AQI before stepping out',
-    detail: 'Look at today’s AQI and the best/worst windows above — a 10-second check decides whether to mask up or wait.',
-    impact: 'The cheapest habit in this plan: it costs nothing and prevents the worst-timed exposure of the day.',
-  });
+  add('Before you leave', 'Check the AQI before stepping out',
+    'Look at today’s AQI and the best/worst windows above — a 10-second check decides whether to mask up or wait.',
+    'The cheapest habit in this plan: it costs nothing and prevents the worst-timed exposure of the day.');
 
   return { city: c.name, aqi: c.aqi, band: band.label, best, worst, items };
 }
@@ -433,47 +446,46 @@ function getActivity(id) {
 }
 
 /**
+ * Verdict bands for doing an activity for one hour at a given PM2.5.
+ * Each band has the verdict for a normal activity and, where it differs,
+ * the stricter verdict for intense or sensitive activity. The thresholds
+ * follow the CPCB PM2.5 breakpoints (60 / 90 / 120 / 250); `detail` builds
+ * the explanation from the reading, the inhaled dose and the activity.
+ */
+const ACTIVITY_BANDS = [
+  { max: 60, level: 'go', verdict: 'Go ahead',
+    detail: (v, dose, what) => `PM2.5 ${v} µg/m³ is Good / Satisfactory — about ${dose} µg inhaled in an hour of ${what}.` },
+  { max: 90, level: 'go', verdict: 'Go ahead',
+    detail: (v, dose, what) => `PM2.5 ${v} µg/m³ is Moderate — ${what} is fine; intense exercise is the thing to shorten.`,
+    intense: { level: 'caution', verdict: 'OK, keep it short',
+      detail: (v, dose, what) => `PM2.5 ${v} µg/m³ is Moderate — ${what} is fine for about 30 minutes, but a full hour would inhale ≈ ${dose} µg.` } },
+  { max: 120, level: 'caution', verdict: 'OK for 30 min, with an N95',
+    detail: (v, dose, what) => `PM2.5 ${v} µg/m³ is Poor — a short, easy outing is manageable with an N95 mask; anything longer, wait for the afternoon window.`,
+    intense: { level: 'avoid', verdict: 'Avoid',
+      detail: (v, dose, what) => `PM2.5 ${v} µg/m³ is Poor — ${what} would inhale ≈ ${dose} µg in an hour. Move it indoors or to the afternoon window.` } },
+  { max: 250, level: 'avoid', verdict: 'Avoid',
+    detail: (v, dose, what) => `PM2.5 ${v} µg/m³ is Very Poor — an hour of ${what} would inhale ≈ ${dose} µg. Stay indoors; if you must go out, wear an N95 and keep it brief.` },
+  { max: Infinity, level: 'avoid', verdict: 'Avoid — stay indoors',
+    detail: (v, dose, what) => `PM2.5 ${v} µg/m³ is Severe — an hour of ${what} would inhale ≈ ${dose} µg. Do not do it outdoors today.` },
+];
+
+/**
  * Verdict for doing `activityId` for one hour when PM2.5 is `pm25`.
  * Returns { level: 'go' | 'caution' | 'avoid', verdict, dose, detail }.
- * dose is the rough PM2.5 inhaled in that hour (µg). The thresholds
- * follow the CPCB PM2.5 breakpoints (60 / 90 / 120 / 250), tightened
- * for intense or sensitive activity.
+ * dose is the rough PM2.5 inhaled in that hour (µg).
  */
 function activityVerdict(activityId, pm25) {
   const a = getActivity(activityId);
-  const v = (typeof pm25 === 'number' && Number.isFinite(pm25) && pm25 >= 0) ? pm25 : null;
+  const v = (isValidNumber(pm25) && pm25 >= 0) ? pm25 : null;
   if (v === null) {
     return { level: 'avoid', verdict: 'No reading', dose: 0, detail: 'No PM2.5 value for that hour.' };
   }
   const dose = Math.round(v * a.breathe);
   const intense = a.breathe >= 2.2 || a.sensitive;
   const what = a.label.toLowerCase();
-  if (v <= 60) {
-    return { level: 'go', verdict: 'Go ahead', dose,
-      detail: `PM2.5 ${v} µg/m³ is Good / Satisfactory — about ${dose} µg inhaled in an hour of ${what}.` };
-  }
-  if (v <= 90) {
-    if (intense) {
-      return { level: 'caution', verdict: 'OK, keep it short', dose,
-        detail: `PM2.5 ${v} µg/m³ is Moderate — ${what} is fine for about 30 minutes, but a full hour would inhale ≈ ${dose} µg.` };
-    }
-    return { level: 'go', verdict: 'Go ahead', dose,
-      detail: `PM2.5 ${v} µg/m³ is Moderate — an easy ${what} is fine; intense exercise is the thing to shorten.` };
-  }
-  if (v <= 120) {
-    if (intense) {
-      return { level: 'avoid', verdict: 'Avoid', dose,
-        detail: `PM2.5 ${v} µg/m³ is Poor — ${what} would inhale ≈ ${dose} µg in an hour. Move it indoors or to the afternoon window.` };
-    }
-    return { level: 'caution', verdict: 'OK for 30 min, with an N95', dose,
-      detail: `PM2.5 ${v} µg/m³ is Poor — a short, easy outing is manageable with an N95 mask; anything longer, wait for the afternoon window.` };
-  }
-  if (v <= 250) {
-    return { level: 'avoid', verdict: 'Avoid', dose,
-      detail: `PM2.5 ${v} µg/m³ is Very Poor — an hour of ${what} would inhale ≈ ${dose} µg. Stay indoors; if you must go out, wear an N95 and keep it brief.` };
-  }
-  return { level: 'avoid', verdict: 'Avoid — stay indoors', dose,
-    detail: `PM2.5 ${v} µg/m³ is Severe — an hour of ${what} would inhale ≈ ${dose} µg. Do not do it outdoors today.` };
+  const band = ACTIVITY_BANDS.find((b) => v <= b.max);
+  const outcome = (intense && band.intense) ? band.intense : band;
+  return { level: outcome.level, verdict: outcome.verdict, dose, detail: outcome.detail(v, dose, what) };
 }
 
 /* ------------------------------------------------------------------ */
@@ -494,7 +506,7 @@ const TARGET_AIR_CHANGES_PER_HOUR = 4;
  */
 function cadrForRoom(lengthM, widthM, heightM = 3) {
   const dims = [lengthM, widthM, heightM].map(Number);
-  if (dims.some((d) => !Number.isFinite(d) || d <= 0 || d > 20)) return null;
+  if (dims.some((d) => !isValidNumber(d) || d <= 0 || d > 20)) return null;
   const volumeM3 = Math.round(dims[0] * dims[1] * dims[2]);
   const cadrM3h = volumeM3 * TARGET_AIR_CHANGES_PER_HOUR;
   const fans = Math.max(1, Math.ceil(cadrM3h / DIY_FAN_CADR_M3H));
@@ -523,7 +535,7 @@ const COST_RS_PER_KM = { car: 7, 'two-wheeler': 2.1, bus: 1.5, metro: 2, 'walk-c
  * All zeros when the mode is already a car or the inputs are invalid.
  */
 function commuteSavings(mode, km, daysPerWeek = 5) {
-  const distance = Math.max(0, Math.min(100, Number(km) || 0));
+  const distance = clampKm(km);
   const days = Math.max(0, Math.min(7, Number(daysPerWeek) || 0));
   const m = CO2_G_PER_KM[mode] !== undefined ? mode : 'car';
   const co2PerDayKg = co2SavedKg(m, distance);
@@ -542,6 +554,6 @@ if (typeof module !== 'undefined' && module.exports) {
     bestOutdoorWindow, worstOutdoorWindow, fmtHour, generateRoutine,
     co2SavedKg, exposureAvoided, INDOOR_HACKS, buildAQIPrompt,
     rankCities, ACTIVITIES, getActivity, activityVerdict,
-    cadrForRoom, commuteSavings,
+    cadrForRoom, commuteSavings, recommendedCommuteMode, VEHICLE_LABELS,
   };
 }

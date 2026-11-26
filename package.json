@@ -1,0 +1,1 @@
+{"description":"BreatheEasy — GenAI urban air quality assistant for Indian cities (PromptWars Virtual, Challenge 06).","name":"breatheeasy-aqi-assistant","private":true,"scripts":{"build":"node tools/build-standalone.mjs","test":"node tests/aqi.test.js"},"version":"1.0.0"}

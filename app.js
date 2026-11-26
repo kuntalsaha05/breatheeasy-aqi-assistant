@@ -47,6 +47,7 @@ const state = {
   city: getCity('delhi'), // bundled sample data until live data loads
   plan: null,
   hacks: new Set(),
+  activityChecked: false, // re-run the activity check on city change, once checked
 };
 
 /* ------------------------------------------------------------------ */
@@ -130,7 +131,7 @@ function renderCity() {
   renderAQI();
   renderOutlook();
   renderCompare();
-  if (activityChecked) onCheckActivity();
+  if (state.activityChecked) onCheckActivity();
   $('prompt-text').value = buildAQIPrompt(readProfile(), state.city, state.plan);
   $('ai-note').textContent = 'Built-in plan above. Edit the prompt and run it with Gemini to upgrade.';
 }
@@ -181,11 +182,12 @@ async function onTryLive() {
     if (pm25.length < 24 || pm10.length < 24) throw new Error('short series');
     const today = pm25.slice(0, 24);
     const tomorrow = pm25.slice(24, 48);
-    const current = today[new Date().getHours()] ?? today[today.length - 1];
+    const hour = new Date().getHours();
+    const current = today[hour] ?? today[today.length - 1];
     state.city = {
       key: c.key, name: c.name, lat: c.lat, lon: c.lon,
       pm25: Math.round(current),
-      pm10: Math.round(pm10[new Date().getHours()] ?? pm10[23]),
+      pm10: Math.round(pm10[hour] ?? pm10[23]),
       aqi: pm25ToAQI(current),
       hourly: today.map((v) => Math.round(v)),
       tomorrow: tomorrow.map((v) => Math.round(v)),
@@ -258,7 +260,7 @@ function onGenerate() {
     `<b>Your plan today:</b> shifting outdoor activity to the ${fmtHour(plan.best.start)}–${fmtHour(plan.best.end)} window ` +
     `avoids ≈ ${avoided} µg of PM2.5 inhaled per hour outdoors` +
     (commute ? `; ${esc(commute.impact)}` : '.');
-  const swapMode = ['bus', 'metro', 'walk-cycle'].includes(profile.vehicle) ? profile.vehicle : 'metro';
+  const swapMode = recommendedCommuteMode(profile.vehicle);
   const savings = profile.commuter ? commuteSavings(swapMode, profile.commuteKm, 5) : null;
   if (savings && (savings.co2PerWeekKg > 0 || savings.moneyPerWeekRs > 0)) {
     $('impact-summary').innerHTML +=
@@ -319,8 +321,6 @@ async function onRunPrompt() {
 /* Activity checker — can I do it now?                                 */
 /* ------------------------------------------------------------------ */
 
-let activityChecked = false;
-
 /** Fill the hour select (24 options, 2 PM selected — the best window). */
 function populateHours() {
   $('act-hour').innerHTML = Array.from({ length: 24 }, (_, h) =>
@@ -329,7 +329,7 @@ function populateHours() {
 
 /** Verdict for the chosen activity at the chosen hour in the current city. */
 function onCheckActivity() {
-  activityChecked = true;
+  state.activityChecked = true;
   const hour = +$('act-hour').value;
   const pm25 = state.city.hourly[hour];
   const v = activityVerdict($('act-activity').value, pm25);
@@ -443,9 +443,27 @@ $('theme-toggle').addEventListener('click', () => {
 });
 
 populateHours();
+populateSelects();
 initTheme();
 loadProfile();
 renderHacks();
 renderCity();
+
+/**
+ * Fill the city, activity and vehicle pickers from the aqi.js data —
+ * one source of truth, so the lists can never drift from the logic.
+ * Defaults: Delhi, easy walk, petrol car.
+ */
+function populateSelects() {
+  $('city').innerHTML = CITIES.map((c) =>
+    `<option value="${c.key}">${esc(c.name)}</option>`).join('');
+  $('city').value = state.city.key;
+  $('act-activity').innerHTML = ACTIVITIES.map((a) =>
+    `<option value="${a.id}">${esc(a.label)}</option>`).join('');
+  $('act-activity').value = 'walk';
+  $('p-vehicle').innerHTML = Object.entries(VEHICLE_LABELS).map(([value, label]) =>
+    `<option value="${value}">${esc(label)}</option>`).join('');
+  $('p-vehicle').value = 'car';
+}
 
 })();

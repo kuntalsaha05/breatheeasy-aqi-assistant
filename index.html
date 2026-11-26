@@ -9,6 +9,7 @@
        air-quality API. No external scripts, no tracking. -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src https://generativelanguage.googleapis.com https://air-quality-api.open-meteo.com; img-src 'self' data:; base-uri 'self'">
   <title>BreatheEasy — Urban Air Quality Assistant</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230f766e'/%3E%3Ctext x='50' y='70' font-size='62' text-anchor='middle' fill='white' font-family='system-ui,sans-serif' font-weight='700'%3EB%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -22,23 +23,8 @@
     <section class="card" id="location-card">
       <h2>Where are you?</h2>
       <label>City
-        <select id="city">
-          <option value="delhi" selected>Delhi</option>
-          <option value="lucknow">Lucknow</option>
-          <option value="kanpur">Kanpur</option>
-          <option value="patna">Patna</option>
-          <option value="amritsar">Amritsar</option>
-          <option value="indore">Indore</option>
-          <option value="bhopal">Bhopal</option>
-          <option value="kolkata">Kolkata</option>
-          <option value="ahmedabad">Ahmedabad</option>
-          <option value="jaipur">Jaipur</option>
-          <option value="mumbai">Mumbai</option>
-          <option value="pune">Pune</option>
-          <option value="bengaluru">Bengaluru</option>
-          <option value="hyderabad">Hyderabad</option>
-          <option value="chennai">Chennai</option>
-        </select>
+        <!-- Options are populated from CITIES in aqi.js by app.js — one source of truth. -->
+        <select id="city"></select>
       </label>
       <div class="row">
         <button id="use-location">📍 Use my location</button>
@@ -90,13 +76,8 @@
         <legend>Commute</legend>
         <label class="check"><input type="checkbox" id="p-commuter" checked> I commute daily</label>
         <label>Usual vehicle
-          <select id="p-vehicle">
-            <option value="car" selected>Car (petrol)</option>
-            <option value="two-wheeler">Two-wheeler</option>
-            <option value="bus">Bus</option>
-            <option value="metro">Metro</option>
-            <option value="walk-cycle">Walking / cycling</option>
-          </select>
+          <!-- Options are populated from VEHICLE_LABELS in aqi.js by app.js. -->
+          <select id="p-vehicle"></select>
         </label>
         <label>Round-trip distance (km)
           <input type="number" id="p-km" value="10" min="1" max="100">
@@ -116,14 +97,8 @@
       <p class="hint">Pick an activity and an hour — the checker uses that hour's PM2.5 and how hard you breathe to give a verdict, not a guess.</p>
       <div class="row">
         <label>Activity
-          <select id="act-activity">
-            <option value="walk" selected>Easy walk</option>
-            <option value="run">Running / jogging</option>
-            <option value="cycle">Cycling</option>
-            <option value="play">Children playing outside</option>
-            <option value="work">Outdoor work (heavy)</option>
-            <option value="elderly-walk">Elderly walk</option>
-          </select>
+          <!-- Options are populated from ACTIVITIES in aqi.js by app.js. -->
+          <select id="act-activity"></select>
         </label>
         <label>Hour
           <select id="act-hour" aria-label="Hour of day"></select>

@@ -76,6 +76,12 @@ The core idea: **deterministic air-quality logic + an inspectable GenAI layer.**
   - *Weekly commute savings* — the plan's commute swap is extended to
     a 5-day week in CO2 and in rupees (rough Indian fuel/fare averages,
     labelled as such).
+- **One source of truth for every list** — the city, activity and vehicle
+  pickers are built from the `aqi.js` data (`CITIES`, `ACTIVITIES`,
+  `VEHICLE_LABELS`) at load time, never hardcoded in the HTML, so the UI
+  and the logic can never drift apart. The commute recommendation is
+  likewise computed once (`recommendedCommuteMode()`) and shared by the
+  day plan and the weekly-savings summary.
 - **The app remembers and respects the user** — the household profile
   saves in the browser (localStorage, nothing leaves the device), the
   day plan copies as plain text, charts carry hour labels, and a dark
@@ -94,7 +100,8 @@ app.js ────── state + rendering, Open-Meteo live fetch (CAMS), geolo
      │
 aqi.js ────── categoriseAQI() → CPCB band + health guidance
               pm25ToAQI() → AQI from PM2.5 (CPCB breakpoints)
-              bestOutdoorWindow() / worstOutdoorWindow() → 2-hour windows
+              bestOutdoorWindow() / worstOutdoorWindow() → 2-hour windows,
+                both through one extremeWindow() helper
               generateRoutine() → day plan, every item with an impact
               co2SavedKg() / exposureAvoided() → the impact maths
               buildAQIPrompt() → the editable prompt sent to Gemini
@@ -141,7 +148,7 @@ repo has no duplicated code). Regenerate it after any change with
 `node tools/build-standalone.mjs` (source of truth stays the separate
 files, so the code stays reviewable and tested).
 
-**Test it:** `node tests/aqi.test.js` — checks every CPCB band boundary,
+**Test it:** `npm test` (runs `node tests/aqi.test.js`) — checks every CPCB band boundary,
 the PM2.5→AQI breakpoints, bundled-city consistency, nearest-city
 mapping, best/worst window maths, CO2 and exposure calculations, routine
 generation for a full household and for edge cases, the city ranking,

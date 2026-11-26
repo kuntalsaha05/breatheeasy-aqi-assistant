@@ -14,8 +14,6 @@
   --teal-600: #0d9488;
   --teal-500: #14b8a6;
   --teal-300: #5eead4;
-  --teal-100: #ccfbf1;
-  --teal-50: #f0fdfa;
   --ink: #0f172a;
   --body: #1e293b;
   --muted: #64748b;
@@ -154,7 +152,6 @@ main .card:nth-child(10) { animation-delay: .45s; }
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: none; }
 }
-.hidden { display: none; }
 .hint { color: var(--muted); font-size: 13px; line-height: 1.55; }
 .small { font-size: 13px; color: var(--muted); font-weight: 400; }
 
