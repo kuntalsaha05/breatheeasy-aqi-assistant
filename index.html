@@ -7,19 +7,21 @@
   <!-- Defence in depth: only this origin's code runs; the only network calls
        the page may make are to Google's Gemini API and Open-Meteo's free
        air-quality API. No external scripts, no tracking. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src https://generativelanguage.googleapis.com https://air-quality-api.open-meteo.com; img-src 'self' data:; base-uri 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src https://generativelanguage.googleapis.com https://air-quality-api.open-meteo.com; img-src 'self' data:; base-uri 'self'">
   <title>BreatheEasy — Urban Air Quality Assistant</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230f766e'/%3E%3Ctext x='50' y='70' font-size='62' text-anchor='middle' fill='white' font-family='system-ui,sans-serif' font-weight='700'%3EB%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <a class="skip-link" href="#main">Skip to main content</a>
   <header>
     <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to dark mode">🌙 Dark</button>
     <h1>🌫️ BreatheEasy</h1>
     <p class="sub">A GenAI assistant that helps families navigate winter smog — live or bundled AQI, a routine that says exactly what each choice saves you, and indoor hacks that actually work. PromptWars Virtual · Challenge 06.</p>
   </header>
 
-  <main>
+  <main id="main" tabindex="-1">
+    <noscript><p class="noscript-note">BreatheEasy needs JavaScript to run — the AQI maths, charts and day plan are all computed in your browser. Please enable JavaScript and reload.</p></noscript>
     <section class="card" id="location-card">
       <h2>Where are you?</h2>
       <label>City

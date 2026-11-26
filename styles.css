@@ -155,6 +155,31 @@ main .card:nth-child(10) { animation-delay: .45s; }
 .hint { color: var(--muted); font-size: 13px; line-height: 1.55; }
 .small { font-size: 13px; color: var(--muted); font-weight: 400; }
 
+/* Skip link: hidden until a keyboard user tabs to it. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--teal-900);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 0 0 12px 0;
+  font-weight: 700;
+  z-index: 100;
+}
+.skip-link:focus {
+  left: 0;
+}
+
+/* Shown only when JavaScript is disabled. */
+.noscript-note {
+  background: var(--note-bg);
+  border: 1px solid var(--note-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  line-height: 1.6;
+}
+
 /* ---------- Theme toggle ---------- */
 .theme-toggle {
   position: absolute;
@@ -297,6 +322,7 @@ button.secondary:hover { background: var(--note-bg); }
 }
 .chart .bar {
   flex: 1;
+  height: var(--bar-h, 2%);
   background: linear-gradient(180deg, #2dd4bf, var(--teal-600));
   border-radius: 4px 4px 0 0;
   min-height: 2px;
@@ -352,12 +378,19 @@ button.secondary:hover { background: var(--note-bg); }
   border-radius: 999px;
   overflow: hidden;
 }
-.compare-list .cbar span { display: block; height: 100%; border-radius: 999px; }
+.compare-list .cbar span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  width: var(--bar-w, 0);
+  background: var(--bar-c, transparent);
+}
 .compare-list .caqi {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   font-size: 13px;
   white-space: nowrap;
+  color: var(--caqi-c, inherit);
 }
 
 /* ---------- Plan output ---------- */

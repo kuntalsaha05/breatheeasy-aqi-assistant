@@ -8,7 +8,14 @@ what to do indoors, with the direct impact of each choice stated in plain
 numbers.
 
 **Live app:** https://kuntalsaha05.github.io/breatheeasy-aqi-assistant/
-**Repository rules check:** public · single branch (`main`) · total size ≈ 94 KB (limit 10 MB)
+**Repository rules check:** public · single branch (`main`) · total size ≈ 0.7 MB (limit 10 MB)
+
+## Screenshots
+
+Delhi, AQI 420 Severe, with a day plan generated — light mode, then dark mode:
+
+![BreatheEasy in light mode — Delhi AQI 420, outlook charts, city ranking and a generated day plan](screenshots/light.jpg)
+![BreatheEasy in dark mode](screenshots/dark.jpg)
 
 ---
 
@@ -82,6 +89,10 @@ The core idea: **deterministic air-quality logic + an inspectable GenAI layer.**
   and the logic can never drift apart. The commute recommendation is
   likewise computed once (`recommendedCommuteMode()`) and shared by the
   day plan and the weekly-savings summary.
+- **Hardened and accessible** — a strict Content-Security-Policy with
+  no `unsafe-inline` (dynamic bar sizes go through CSS custom
+  properties, never inline styles), a skip-to-content link, keyboard
+  focus styles, a no-JavaScript notice, and a full dark mode.
 - **The app remembers and respects the user** — the household profile
   saves in the browser (localStorage, nothing leaves the device), the
   day plan copies as plain text, charts carry hour labels, and a dark
@@ -172,14 +183,13 @@ prompt carries the user's context.
 - **The app is platform-agnostic static code** — plain HTML/CSS/JS, no
   build step, no framework, no backend. It runs from any static host
   (GitHub Pages) or straight from the file system.
-- **Two submission questions are not settled by the challenge
-  instructions pasted for this attempt** and do not change the app
-  itself: whether Google Antigravity is required to build/submit (the
-  instructions say only "the AI platform that you are going to use" with
-  no named tool), and whether a narrative/blog "dual submission" is also
-  required (the instructions list only the repository link, code, and
-  README). Both should be confirmed on the Hack2Skill dashboard / in the
-  Challenge 06 explainer session before submitting.
+- **Submission rules, as published for PromptWars: Virtual** — the
+  build must use Google Antigravity, and a valid submission is a dual
+  one: the technical project (code + live preview) and a public
+  narrative (a technical blog post plus a LinkedIn post sharing the
+  build journey). The build narrative for this project is published
+  alongside the submission; the LinkedIn post is linked from the
+  submission form.
 - The Gemini key is the user's own; the app never sees or stores anyone
   else's. The built-in rule-based plan is the fallback when there is no
   key or no network.

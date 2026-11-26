@@ -67,15 +67,19 @@ function renderAQI() {
   $('aqi-sensitive').textContent = band ? band.sensitive : '';
 }
 
-/** Render one 24-bar PM2.5 chart; best/worst window bars are coloured. */
+/** Render one 24-bar PM2.5 chart; best/worst window bars are coloured.
+    Bar heights are set through CSS custom properties (el.style), never
+    through inline style attributes, so the CSP needs no 'unsafe-inline'. */
 function renderChart(elId, hourly, best, worst) {
   const el = $(elId);
   const max = Math.max(...hourly, 1);
   el.innerHTML = hourly.map((v, h) => {
     const cls = h >= best.start && h < best.end ? 'bar best'
       : h >= worst.start && h < worst.end ? 'bar worst' : 'bar';
-    return `<div class="${cls}" style="height:${Math.max(2, Math.round((v / max) * 100))}%" title="${fmtHour(h)}: ${v} µg/m³"></div>`;
+    return `<div class="${cls}" data-h="${Math.max(2, Math.round((v / max) * 100))}" title="${fmtHour(h)}: ${v} µg/m³"></div>`;
   }).join('');
+  el.querySelectorAll('.bar').forEach((bar) =>
+    bar.style.setProperty('--bar-h', `${bar.dataset.h}%`));
   el.setAttribute('aria-label',
     `Bar chart of hourly PM2.5, ${fmtHour(0)} to ${fmtHour(23)}. ` +
     `Lowest around ${fmtHour(best.start)}, highest around ${fmtHour(worst.start)}.`);
@@ -136,7 +140,9 @@ function renderCity() {
   $('ai-note').textContent = 'Built-in plan above. Edit the prompt and run it with Gemini to upgrade.';
 }
 
-/** Ranked city comparison, worst first; the current city is highlighted. */
+/** Ranked city comparison, worst first; the current city is highlighted.
+    Bar widths and colours are set through CSS custom properties (el.style),
+    never through inline style attributes, so the CSP needs no 'unsafe-inline'. */
 function renderCompare() {
   const rows = rankCities();
   const max = Math.max(...rows.map((r) => r.aqi), 1);
@@ -144,8 +150,14 @@ function renderCompare() {
     `<li class="${r.key === state.city.key ? 'current' : ''}">` +
     `<span class="rank">${r.rank}</span>` +
     `<span class="cname">${esc(r.name)}</span>` +
-    `<span class="cbar"><span style="width:${Math.round((r.aqi / max) * 100)}%; background:${r.color}"></span></span>` +
-    `<span class="caqi" style="color:${r.color}">${r.aqi} · ${esc(r.band)}</span></li>`).join('');
+    `<span class="cbar"><span data-w="${Math.round((r.aqi / max) * 100)}" data-c="${r.color}"></span></span>` +
+    `<span class="caqi" data-c="${r.color}">${r.aqi} · ${esc(r.band)}</span></li>`).join('');
+  $('compare-list').querySelectorAll('.cbar span').forEach((s) => {
+    s.style.setProperty('--bar-w', `${s.dataset.w}%`);
+    s.style.setProperty('--bar-c', s.dataset.c);
+  });
+  $('compare-list').querySelectorAll('.caqi').forEach((s) =>
+    s.style.setProperty('--caqi-c', s.dataset.c));
 }
 
 /* ------------------------------------------------------------------ */
